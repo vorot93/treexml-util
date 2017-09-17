@@ -1,0 +1,19 @@
+[package]
+name = "treexml_util"
+version = "0.1.0"
+authors = [
+    "Artem Vorotnikov <artem@vorotnikov.me>",
+]
+description = "Convenience utils for treexml"
+repository = "https://github.com/vorot93/treexml-util"
+keywords = [
+    "xml",
+]
+categories = [
+    "api-bindings",
+]
+license = "MIT"
+
+[dependencies]
+error-chain = "*"
+treexml = { git = "https://github.com/rahulg/treexml-rs" }
