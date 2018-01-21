@@ -1,5 +1,3 @@
-#![cfg_attr(feature="cargo-clippy", allow(needless_pass_by_value))]
-
 extern crate treexml;
 
 use std::str::FromStr;
@@ -18,8 +16,8 @@ pub fn find_value<T>(name: &str, root: &treexml::Element) -> Result<Option<T>, t
 where
     T: std::str::FromStr,
 {
-    root.find_value(name).or_else(|e| match *e.kind() {
-        treexml::ErrorKind::ElementNotFound(_) => Ok(None),
+    root.find_value(name).or_else(|e| match e {
+        treexml::Error::ElementNotFound {..} => Ok(None),
         _ => Err(e),
     })
 }
@@ -37,7 +35,7 @@ where
                 &mut match T::from_str(text) {
                     Ok(v) => v,
                     Err(e) => {
-                        return Err(treexml::ErrorKind::ValueFromStr(e.to_string()).into());
+                        return Err(treexml::Error::ValueFromStr{t: e.to_string()}.into());
                     }
                 },
             );
@@ -59,7 +57,7 @@ fn deserialize_node_bool(out: &mut bool, node: &treexml::Element) -> Result<bool
                 &mut match bool::from_str(text) {
                     Ok(v) => v,
                     Err(e) => {
-                        return Err(treexml::ErrorKind::ValueFromStr(e.to_string()).into());
+                        return Err(treexml::Error::ValueFromStr{t:e.to_string()}.into());
                     }
                 },
             );
