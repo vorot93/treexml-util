@@ -6,7 +6,7 @@ extern crate treexml;
 
 use std::str::FromStr;
 
-pub fn parse_node(s: &str) -> treexml::Result<Option<treexml::Element>> {
+pub fn parse_node(s: &str) -> Result<Option<treexml::Element>, treexml::Error> {
     let doc = treexml::Document::parse(s.as_bytes())?;
 
     Ok(doc.root)
@@ -16,7 +16,7 @@ pub fn trimmed_optional(e: &Option<String>) -> Option<String> {
     e.clone().map(|v| v.trim().into())
 }
 
-pub fn find_value<T>(name: &str, root: &treexml::Element) -> treexml::Result<Option<T>>
+pub fn find_value<T>(name: &str, root: &treexml::Element) -> Result<Option<T>, treexml::Error>
 where
     T: std::str::FromStr,
 {
@@ -26,7 +26,7 @@ where
     })
 }
 
-fn deserialize_node<T>(out: &mut T, node: &treexml::Element) -> treexml::Result<bool>
+fn deserialize_node<T>(out: &mut T, node: &treexml::Element) -> Result<bool, treexml::Error>
 where
     T: std::str::FromStr,
     T::Err: std::fmt::Display,
@@ -49,7 +49,7 @@ where
 }
 
 
-fn deserialize_node_bool(out: &mut bool, node: &treexml::Element) -> treexml::Result<bool> {
+fn deserialize_node_bool(out: &mut bool, node: &treexml::Element) -> Result<bool, treexml::Error> {
     match node.text {
         None => {
             std::mem::swap(out, &mut true);
@@ -71,29 +71,29 @@ fn deserialize_node_bool(out: &mut bool, node: &treexml::Element) -> treexml::Re
 }
 
 pub trait Unmarshaller {
-    fn unmarshal(&mut self, &treexml::Element) -> treexml::Result<bool>;
+    fn unmarshal(&mut self, &treexml::Element) -> Result<bool, treexml::Error>;
 }
 
 impl Unmarshaller for bool {
-    fn unmarshal(&mut self, node: &treexml::Element) -> treexml::Result<bool> {
+    fn unmarshal(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
         deserialize_node_bool(self, node)
     }
 }
 
 impl Unmarshaller for i64 {
-    fn unmarshal(&mut self, node: &treexml::Element) -> treexml::Result<bool> {
+    fn unmarshal(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
         deserialize_node(self, node)
     }
 }
 
 impl Unmarshaller for f64 {
-    fn unmarshal(&mut self, node: &treexml::Element) -> treexml::Result<bool> {
+    fn unmarshal(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
         deserialize_node(self, node)
     }
 }
 
 impl Unmarshaller for String {
-    fn unmarshal(&mut self, node: &treexml::Element) -> treexml::Result<bool> {
+    fn unmarshal(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
         deserialize_node(self, node)
     }
 }
