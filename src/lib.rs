@@ -1,7 +1,5 @@
 #![cfg_attr(feature="cargo-clippy", allow(needless_pass_by_value))]
 
-#[macro_use]
-extern crate error_chain;
 extern crate treexml;
 
 use std::str::FromStr;
@@ -39,7 +37,7 @@ where
                 &mut match T::from_str(text) {
                     Ok(v) => v,
                     Err(e) => {
-                        bail!(treexml::ErrorKind::ValueFromStr(e.to_string()));
+                        return Err(treexml::ErrorKind::ValueFromStr(e.to_string()).into());
                     }
                 },
             );
@@ -61,7 +59,7 @@ fn deserialize_node_bool(out: &mut bool, node: &treexml::Element) -> Result<bool
                 &mut match bool::from_str(text) {
                     Ok(v) => v,
                     Err(e) => {
-                        bail!(treexml::ErrorKind::ValueFromStr(e.to_string()));
+                        return Err(treexml::ErrorKind::ValueFromStr(e.to_string()).into());
                     }
                 },
             );
