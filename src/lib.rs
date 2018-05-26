@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate failure;
 extern crate treexml;
 
 use std::str::FromStr;
@@ -16,6 +18,9 @@ pub trait ElementExt {
     fn find_value0<T>(&self, name: &str) -> Result<Option<T>, treexml::Error>
     where
         T: std::str::FromStr;
+
+    fn find_bool(&self, name: &str) -> Result<bool, treexml::Error>;
+
     fn unmarshal_into<T>(&self, out: &mut T) -> Result<bool, treexml::Error>
     where
         T: std::str::FromStr,
@@ -29,6 +34,17 @@ impl ElementExt for treexml::Element {
             treexml::Error::ElementNotFound { .. } => Ok(None),
             _ => Err(e),
         })
+    }
+
+    fn find_bool(&self, name: &str) -> Result<bool, treexml::Error> {
+        match self.find_value(name) {
+            Ok(None) => Err(treexml::Error::ParseError(format_err!("Boolean value not found for key {}", name).into())),
+            Ok(Some(v)) => Ok(v),
+            Err(e) => match e {
+                treexml::Error::ElementNotFound { .. } => Ok(false),
+                _ => Err(e),
+            }
+        }
     }
 
     fn unmarshal_into<T>(&self, out: &mut T) -> Result<bool, treexml::Error>

@@ -15,4 +15,5 @@ categories = [
 license = "MIT"
 
 [dependencies]
+failure = "0.1"
 treexml = { git = "https://github.com/vorot93/treexml-rs", branch = "failure" }
