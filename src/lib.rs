@@ -15,15 +15,19 @@ pub fn trimmed_optional(e: &Option<String>) -> Option<String> {
 }
 
 pub trait ElementExt {
-    fn find_value0<T>(&self, name: &str) -> Result<Option<T>, treexml::Error>
+    fn find_value0<T, PATH>(&self, path: PATH) -> Result<Option<T>, treexml::Error>
     where
+        PATH: Into<String>,
         T: std::str::FromStr;
 
-    fn find_value1<T>(&self, name: &str) -> Result<T, treexml::Error>
+    fn find_value1<T, PATH>(&self, path: PATH) -> Result<T, treexml::Error>
     where
+        PATH: Into<String>,
         T: std::str::FromStr;
 
-    fn find_bool(&self, name: &str) -> Result<bool, treexml::Error>;
+    fn find_bool<PATH>(&self, path: PATH) -> Result<bool, treexml::Error>
+    where
+        PATH: Into<String>;
 
     fn unmarshal_into<T>(&self, out: &mut T) -> Result<bool, treexml::Error>
     where
@@ -33,29 +37,39 @@ pub trait ElementExt {
 }
 
 impl ElementExt for treexml::Element {
-    fn find_value0<T>(&self, name: &str) -> Result<Option<T>, treexml::Error>
+    fn find_value0<T, PATH>(&self, path: PATH) -> Result<Option<T>, treexml::Error>
     where
+        PATH: Into<String>,
         T: std::str::FromStr,
     {
-        self.find_value(name).or_else(|e| match e {
+        let path = path.into();
+        self.find_value(&path).or_else(|e| match e {
             treexml::Error::ElementNotFound { .. } => Ok(None),
             _ => Err(e),
         })
     }
 
-    fn find_value1<T>(&self, name: &str) -> Result<T, treexml::Error>
+    fn find_value1<T, PATH>(&self, path: PATH) -> Result<T, treexml::Error>
     where
+        PATH: Into<String>,
         T: std::str::FromStr,
     {
-        self.find_value0(name).and_then(|v| {
-            v.ok_or_else(|| treexml::Error::ParseError(format_err!("Value not found: {}", name)))
+        let path = path.into();
+        self.find_value0(path.clone()).and_then(|v| {
+            v.ok_or_else(|| {
+                treexml::Error::ParseError(format_err!("Value not found at path: {}", &path))
+            })
         })
     }
 
-    fn find_bool(&self, name: &str) -> Result<bool, treexml::Error> {
-        match self.find_value(name) {
+    fn find_bool<PATH>(&self, path: PATH) -> Result<bool, treexml::Error>
+    where
+        PATH: Into<String>,
+    {
+        let path = path.into();
+        match self.find_value(&path) {
             Ok(None) => Err(treexml::Error::ParseError(
-                format_err!("Boolean value not found for key {}", name).into(),
+                format_err!("Boolean value not found for key {}", &path).into(),
             )),
             Ok(Some(v)) => Ok(v),
             Err(e) => match e {
@@ -191,6 +205,27 @@ mod tests {
 
         let mut result = bool::default();
         result.unmarshal_from(&fixture).unwrap();
+
+        assert_eq!(expectation, result);
+    }
+
+    #[test]
+    fn test_find_value() {
+        let root = treexml::Element {
+            name: "root".into(),
+            children: vec![
+                treexml::Element {
+                    name: "key".into(),
+                    text: Some("value".into()),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+
+        let expectation = "value".to_string();
+
+        let result = root.find_value1::<String, _>("key").unwrap();
 
         assert_eq!(expectation, result);
     }
