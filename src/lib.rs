@@ -19,6 +19,10 @@ pub trait ElementExt {
     where
         T: std::str::FromStr;
 
+    fn find_value1<T>(&self, name: &str) -> Result<T, treexml::Error>
+    where
+        T: std::str::FromStr;
+
     fn find_bool(&self, name: &str) -> Result<bool, treexml::Error>;
 
     fn unmarshal_into<T>(&self, out: &mut T) -> Result<bool, treexml::Error>
@@ -29,21 +33,35 @@ pub trait ElementExt {
 }
 
 impl ElementExt for treexml::Element {
-    fn find_value0<T: FromStr>(&self, name: &str) -> Result<Option<T>, treexml::Error> {
+    fn find_value0<T>(&self, name: &str) -> Result<Option<T>, treexml::Error>
+    where
+        T: std::str::FromStr,
+    {
         self.find_value(name).or_else(|e| match e {
             treexml::Error::ElementNotFound { .. } => Ok(None),
             _ => Err(e),
         })
     }
 
+    fn find_value1<T>(&self, name: &str) -> Result<T, treexml::Error>
+    where
+        T: std::str::FromStr,
+    {
+        self.find_value0(name).and_then(|v| {
+            v.ok_or_else(|| treexml::Error::ParseError(format_err!("Value not found: {}", name)))
+        })
+    }
+
     fn find_bool(&self, name: &str) -> Result<bool, treexml::Error> {
         match self.find_value(name) {
-            Ok(None) => Err(treexml::Error::ParseError(format_err!("Boolean value not found for key {}", name).into())),
+            Ok(None) => Err(treexml::Error::ParseError(
+                format_err!("Boolean value not found for key {}", name).into(),
+            )),
             Ok(Some(v)) => Ok(v),
             Err(e) => match e {
                 treexml::Error::ElementNotFound { .. } => Ok(false),
                 _ => Err(e),
-            }
+            },
         }
     }
 
