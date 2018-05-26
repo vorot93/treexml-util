@@ -12,85 +12,94 @@ pub fn trimmed_optional(e: &Option<String>) -> Option<String> {
     e.clone().map(|v| v.trim().into())
 }
 
-pub fn find_value<T>(name: &str, root: &treexml::Element) -> Result<Option<T>, treexml::Error>
-where
-    T: std::str::FromStr,
-{
-    root.find_value(name).or_else(|e| match e {
-        treexml::Error::ElementNotFound {..} => Ok(None),
-        _ => Err(e),
-    })
+pub trait ElementExt {
+    fn find_value0<T>(&self, name: &str) -> Result<Option<T>, treexml::Error>
+    where
+        T: std::str::FromStr;
+    fn unmarshal_into<T>(&self, out: &mut T) -> Result<bool, treexml::Error>
+    where
+        T: std::str::FromStr,
+        T::Err: std::fmt::Display;
+    fn unmarshal_bool_into(&self, out: &mut bool) -> Result<bool, treexml::Error>;
 }
 
-fn deserialize_node<T>(out: &mut T, node: &treexml::Element) -> Result<bool, treexml::Error>
-where
-    T: std::str::FromStr,
-    T::Err: std::fmt::Display,
-{
-    match node.text {
-        None => Ok(false),
-        Some(ref text) => {
-            std::mem::swap(
-                out,
-                &mut match T::from_str(text) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        return Err(treexml::Error::ValueFromStr{t: e.to_string()}.into());
-                    }
-                },
-            );
-            Ok(true)
+impl ElementExt for treexml::Element {
+    fn find_value0<T: FromStr>(&self, name: &str) -> Result<Option<T>, treexml::Error> {
+        self.find_value(name).or_else(|e| match e {
+            treexml::Error::ElementNotFound { .. } => Ok(None),
+            _ => Err(e),
+        })
+    }
+
+    fn unmarshal_into<T>(&self, out: &mut T) -> Result<bool, treexml::Error>
+    where
+        T: std::str::FromStr,
+        T::Err: std::fmt::Display,
+    {
+        match self.text {
+            None => Ok(false),
+            Some(ref text) => {
+                std::mem::swap(
+                    out,
+                    &mut match T::from_str(text) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            return Err(treexml::Error::ValueFromStr { t: e.to_string() }.into());
+                        }
+                    },
+                );
+                Ok(true)
+            }
         }
     }
-}
 
-
-fn deserialize_node_bool(out: &mut bool, node: &treexml::Element) -> Result<bool, treexml::Error> {
-    match node.text {
-        None => {
-            std::mem::swap(out, &mut true);
-            Ok(true)
-        }
-        Some(ref text) => {
-            std::mem::swap(
-                out,
-                &mut match bool::from_str(text) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        return Err(treexml::Error::ValueFromStr{t:e.to_string()}.into());
-                    }
-                },
-            );
-            Ok(true)
+    fn unmarshal_bool_into(&self, out: &mut bool) -> Result<bool, treexml::Error> {
+        match self.text {
+            None => {
+                std::mem::swap(out, &mut true);
+                Ok(true)
+            }
+            Some(ref text) => {
+                std::mem::swap(
+                    out,
+                    &mut match bool::from_str(text) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            return Err(treexml::Error::ValueFromStr { t: e.to_string() }.into());
+                        }
+                    },
+                );
+                Ok(true)
+            }
         }
     }
 }
 
 pub trait Unmarshaller {
-    fn unmarshal(&mut self, &treexml::Element) -> Result<bool, treexml::Error>;
+    fn unmarshal_from(&mut self, &treexml::Element) -> Result<bool, treexml::Error>;
 }
 
 impl Unmarshaller for bool {
-    fn unmarshal(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
-        deserialize_node_bool(self, node)
+    fn unmarshal_from(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
+        node.unmarshal_bool_into(self)
     }
 }
 
 impl Unmarshaller for i64 {
-    fn unmarshal(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
-        deserialize_node(self, node)
+    fn unmarshal_from(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
+        node.unmarshal_into(self)
     }
 }
 
 impl Unmarshaller for f64 {
-    fn unmarshal(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
-        deserialize_node(self, node)
+    fn unmarshal_from(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
+        node.unmarshal_into(self)
     }
 }
 
 impl Unmarshaller for String {
-    fn unmarshal(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
-        deserialize_node(self, node)
+    fn unmarshal_from(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
+        node.unmarshal_into(self)
     }
 }
 
@@ -136,7 +145,7 @@ mod tests {
         let expectation = 5;
 
         let mut result = i64::default();
-        result.unmarshal(&fixture).unwrap();
+        result.unmarshal_from(&fixture).unwrap();
 
         assert_eq!(expectation, result);
     }
@@ -147,7 +156,7 @@ mod tests {
         let expectation = true;
 
         let mut result = bool::default();
-        result.unmarshal(&fixture).unwrap();
+        result.unmarshal_from(&fixture).unwrap();
 
         assert_eq!(expectation, result);
     }
