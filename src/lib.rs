@@ -67,11 +67,19 @@ impl ElementExt for treexml::Element {
         PATH: Into<String>,
     {
         let path = path.into();
-        match self.find_value(&path) {
-            Ok(None) => Err(treexml::Error::ParseError(
-                format_err!("Boolean value not found for key {}", &path).into(),
-            )),
-            Ok(Some(v)) => Ok(v),
+        match self.find(&path) {
+            Ok(ref e) => match e.text {
+                None => Ok(true),
+                Some(ref text) => match text.as_str() {
+                    "true" => Ok(true),
+                    "false" => Ok(false),
+                    "1" => Ok(true),
+                    "0" => Ok(false),
+                    other => Err(treexml::Error::ParseError(
+                        format_err!("Invalid boolean value: {}", &other)
+                    )),
+                }
+            }
             Err(e) => match e {
                 treexml::Error::ElementNotFound { .. } => Ok(false),
                 _ => Err(e),
