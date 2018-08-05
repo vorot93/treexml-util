@@ -75,11 +75,12 @@ impl ElementExt for treexml::Element {
                     "false" => Ok(false),
                     "1" => Ok(true),
                     "0" => Ok(false),
-                    other => Err(treexml::Error::ParseError(
-                        format_err!("Invalid boolean value: {}", &other)
-                    )),
-                }
-            }
+                    other => Err(treexml::Error::ParseError(format_err!(
+                        "Invalid boolean value: {}",
+                        &other
+                    ))),
+                },
+            },
             Err(e) => match e {
                 treexml::Error::ElementNotFound { .. } => Ok(false),
                 _ => Err(e),
@@ -100,7 +101,7 @@ impl ElementExt for treexml::Element {
                     &mut match T::from_str(text) {
                         Ok(v) => v,
                         Err(e) => {
-                            return Err(treexml::Error::ValueFromStr { t: e.to_string() }.into());
+                            return Err(treexml::Error::ValueFromStr { t: e.to_string() });
                         }
                     },
                 );
@@ -121,7 +122,7 @@ impl ElementExt for treexml::Element {
                     &mut match bool::from_str(text) {
                         Ok(v) => v,
                         Err(e) => {
-                            return Err(treexml::Error::ValueFromStr { t: e.to_string() }.into());
+                            return Err(treexml::Error::ValueFromStr { t: e.to_string() });
                         }
                     },
                 );
@@ -221,13 +222,11 @@ mod tests {
     fn test_find_value() {
         let root = treexml::Element {
             name: "root".into(),
-            children: vec![
-                treexml::Element {
-                    name: "key".into(),
-                    text: Some("value".into()),
-                    ..Default::default()
-                },
-            ],
+            children: vec![treexml::Element {
+                name: "key".into(),
+                text: Some("value".into()),
+                ..Default::default()
+            }],
             ..Default::default()
         };
 
