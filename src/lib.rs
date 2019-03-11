@@ -1,8 +1,5 @@
-#[macro_use]
-extern crate failure;
-extern crate treexml;
-
-use std::str::FromStr;
+use core::str::FromStr;
+use failure::format_err;
 
 pub fn parse_node(s: &str) -> Result<Option<treexml::Element>, treexml::Error> {
     let doc = treexml::Document::parse(s.as_bytes())?;
@@ -133,7 +130,7 @@ impl ElementExt for treexml::Element {
 }
 
 pub trait Unmarshaller {
-    fn unmarshal_from(&mut self, &treexml::Element) -> Result<bool, treexml::Error>;
+    fn unmarshal_from(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error>;
 }
 
 impl Unmarshaller for bool {
