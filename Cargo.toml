@@ -2,19 +2,13 @@
 name = "treexml_util"
 version = "0.1.0"
 edition = "2018"
-authors = [
-    "Artem Vorotnikov <artem@vorotnikov.me>",
-]
+authors = ["Artem Vorotnikov <artem@vorotnikov.me>"]
 description = "Convenience utils for treexml"
 repository = "https://github.com/vorot93/treexml-util"
-keywords = [
-    "xml",
-]
-categories = [
-    "api-bindings",
-]
+keywords = ["xml"]
+categories = ["api-bindings"]
 license = "MIT"
 
 [dependencies]
-failure = "0.1"
-treexml = "0.7"
+anyhow = "1"
+treexml = { git = "https://github.com/rahulg/treexml-rs" }

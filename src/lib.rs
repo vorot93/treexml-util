@@ -1,7 +1,8 @@
+use anyhow::format_err;
 use core::str::FromStr;
-use failure::format_err;
+use treexml::TreexmlError;
 
-pub fn parse_node(s: &str) -> Result<Option<treexml::Element>, treexml::Error> {
+pub fn parse_node(s: &str) -> anyhow::Result<Option<treexml::Element>> {
     let doc = treexml::Document::parse(s.as_bytes())?;
 
     Ok(doc.root)
@@ -12,54 +13,51 @@ pub fn trimmed_optional(e: &Option<String>) -> Option<String> {
 }
 
 pub trait ElementExt {
-    fn find_value0<T, PATH>(&self, path: PATH) -> Result<Option<T>, treexml::Error>
+    fn find_value0<T, PATH>(&self, path: PATH) -> anyhow::Result<Option<T>>
     where
         PATH: Into<String>,
         T: std::str::FromStr;
 
-    fn find_value1<T, PATH>(&self, path: PATH) -> Result<T, treexml::Error>
+    fn find_value1<T, PATH>(&self, path: PATH) -> anyhow::Result<T>
     where
         PATH: Into<String>,
         T: std::str::FromStr;
 
-    fn find_bool<PATH>(&self, path: PATH) -> Result<bool, treexml::Error>
+    fn find_bool<PATH>(&self, path: PATH) -> anyhow::Result<bool>
     where
         PATH: Into<String>;
 
-    fn unmarshal_into<T>(&self, out: &mut T) -> Result<bool, treexml::Error>
+    fn unmarshal_into<T>(&self, out: &mut T) -> anyhow::Result<bool>
     where
         T: std::str::FromStr,
         T::Err: std::fmt::Display;
-    fn unmarshal_bool_into(&self, out: &mut bool) -> Result<bool, treexml::Error>;
+    fn unmarshal_bool_into(&self, out: &mut bool) -> anyhow::Result<bool>;
 }
 
 impl ElementExt for treexml::Element {
-    fn find_value0<T, PATH>(&self, path: PATH) -> Result<Option<T>, treexml::Error>
+    fn find_value0<T, PATH>(&self, path: PATH) -> anyhow::Result<Option<T>>
     where
         PATH: Into<String>,
         T: std::str::FromStr,
     {
         let path = path.into();
         self.find_value(&path).or_else(|e| match e {
-            treexml::Error::ElementNotFound { .. } => Ok(None),
-            _ => Err(e),
+            TreexmlError::ElementNotFound { .. } => Ok(None),
+            _ => Err(e.into()),
         })
     }
 
-    fn find_value1<T, PATH>(&self, path: PATH) -> Result<T, treexml::Error>
+    fn find_value1<T, PATH>(&self, path: PATH) -> anyhow::Result<T>
     where
         PATH: Into<String>,
         T: std::str::FromStr,
     {
         let path = path.into();
-        self.find_value0(path.clone()).and_then(|v| {
-            v.ok_or_else(|| {
-                treexml::Error::ParseError(format_err!("Value not found at path: {}", &path))
-            })
-        })
+        self.find_value0(path.clone())
+            .and_then(|v| v.ok_or_else(|| format_err!("Value not found at path: {}", &path)))
     }
 
-    fn find_bool<PATH>(&self, path: PATH) -> Result<bool, treexml::Error>
+    fn find_bool<PATH>(&self, path: PATH) -> anyhow::Result<bool>
     where
         PATH: Into<String>,
     {
@@ -72,20 +70,17 @@ impl ElementExt for treexml::Element {
                     "false" => Ok(false),
                     "1" => Ok(true),
                     "0" => Ok(false),
-                    other => Err(treexml::Error::ParseError(format_err!(
-                        "Invalid boolean value: {}",
-                        &other
-                    ))),
+                    other => Err(format_err!("Invalid boolean value: {}", &other)),
                 },
             },
             Err(e) => match e {
-                treexml::Error::ElementNotFound { .. } => Ok(false),
-                _ => Err(e),
+                TreexmlError::ElementNotFound { .. } => Ok(false),
+                _ => Err(e.into()),
             },
         }
     }
 
-    fn unmarshal_into<T>(&self, out: &mut T) -> Result<bool, treexml::Error>
+    fn unmarshal_into<T>(&self, out: &mut T) -> anyhow::Result<bool>
     where
         T: std::str::FromStr,
         T::Err: std::fmt::Display,
@@ -98,7 +93,7 @@ impl ElementExt for treexml::Element {
                     &mut match T::from_str(text) {
                         Ok(v) => v,
                         Err(e) => {
-                            return Err(treexml::Error::ValueFromStr { t: e.to_string() });
+                            return Err(TreexmlError::ValueFromStr { t: e.to_string() }.into());
                         }
                     },
                 );
@@ -107,7 +102,7 @@ impl ElementExt for treexml::Element {
         }
     }
 
-    fn unmarshal_bool_into(&self, out: &mut bool) -> Result<bool, treexml::Error> {
+    fn unmarshal_bool_into(&self, out: &mut bool) -> anyhow::Result<bool> {
         match self.text {
             None => {
                 std::mem::swap(out, &mut true);
@@ -119,7 +114,7 @@ impl ElementExt for treexml::Element {
                     &mut match bool::from_str(text) {
                         Ok(v) => v,
                         Err(e) => {
-                            return Err(treexml::Error::ValueFromStr { t: e.to_string() });
+                            return Err(TreexmlError::ValueFromStr { t: e.to_string() }.into());
                         }
                     },
                 );
@@ -130,29 +125,29 @@ impl ElementExt for treexml::Element {
 }
 
 pub trait Unmarshaller {
-    fn unmarshal_from(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error>;
+    fn unmarshal_from(&mut self, node: &treexml::Element) -> anyhow::Result<bool>;
 }
 
 impl Unmarshaller for bool {
-    fn unmarshal_from(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
+    fn unmarshal_from(&mut self, node: &treexml::Element) -> anyhow::Result<bool> {
         node.unmarshal_bool_into(self)
     }
 }
 
 impl Unmarshaller for i64 {
-    fn unmarshal_from(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
+    fn unmarshal_from(&mut self, node: &treexml::Element) -> anyhow::Result<bool> {
         node.unmarshal_into(self)
     }
 }
 
 impl Unmarshaller for f64 {
-    fn unmarshal_from(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
+    fn unmarshal_from(&mut self, node: &treexml::Element) -> anyhow::Result<bool> {
         node.unmarshal_into(self)
     }
 }
 
 impl Unmarshaller for String {
-    fn unmarshal_from(&mut self, node: &treexml::Element) -> Result<bool, treexml::Error> {
+    fn unmarshal_from(&mut self, node: &treexml::Element) -> anyhow::Result<bool> {
         node.unmarshal_into(self)
     }
 }
